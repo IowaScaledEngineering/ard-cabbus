@@ -136,7 +136,7 @@ void loop()
 	{
 		data = rxBufferPop(0);
 
-		if((data & 0x80) && (3 != packetBufferIndex) && (4 != packetBufferIndex))
+		if((data & 0x80) && (3 != packetBufferIndex) && (4 != packetBufferIndex) && (5 != packetBufferIndex))
 		{
 			// Byte from command station...
 			// Next, check if there is a packet waiting in queue from the last cmd station request
@@ -233,7 +233,6 @@ void loop()
 										Serial.print("( 8) ");
 									else
 										Serial.print("(  ) ");
-									Serial.print("     ");
 								break;
 							case 0x09:
 									// Function Group 3
@@ -254,7 +253,6 @@ void loop()
 										Serial.print("(12) ");
 									else
 										Serial.print("(  ) ");
-									Serial.print("     ");
 								break;
 							case 0x15:
 									// Function Group 13-20
@@ -291,7 +289,6 @@ void loop()
 										Serial.print("(20) ");
 									else
 										Serial.print("(  ) ");
-									Serial.print("     ");
 								break;
 							case 0x16:
 									// Function Group 21-28
@@ -328,8 +325,21 @@ void loop()
 										Serial.print("(28) ");
 									else
 										Serial.print("(  ) ");
-									Serial.print("     ");
 								break;
+						}
+					}
+					Serial.print(" {0x");
+					for(i=1; i<=5; i++)
+					{
+						Serial.print((packetBuffer[i]&0xF0)>>4, HEX);
+						Serial.print(packetBuffer[i]&0x0F, HEX);
+						if(i<5)
+						{
+							Serial.print(" 0x");
+						}
+						else
+						{
+							Serial.print("}");
 						}
 					}
 					Serial.print("\n");
