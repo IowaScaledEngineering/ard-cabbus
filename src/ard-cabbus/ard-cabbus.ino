@@ -160,8 +160,8 @@ void loop()
 						}
 						else
 						{
-							Serial.print(cmd - 0x2780);
 							Serial.print("s");
+							Serial.print(cmd - 0x2780);
 						}
 						Serial.print("] ");
 						switch(packetBuffer[3])
