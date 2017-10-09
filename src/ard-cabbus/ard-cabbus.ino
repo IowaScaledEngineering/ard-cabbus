@@ -136,19 +136,52 @@ void loop()
 	{
 		data = rxBufferPop(0);
 
-		if((data & 0x80) && (3 != packetBufferIndex) && (4 != packetBufferIndex) && (5 != packetBufferIndex))
+		if((data & 0xC0)==0x80)
 		{
-			// Byte from command station...
-			// Next, check if there is a packet waiting in queue from the last cmd station request
-			if(packetBufferIndex > 0)
+			// It's a ping
+			if(packetBufferIndex > 1)
 			{
-				// And see if it is a ping...
-				if((packetBuffer[0] & 0xC0)==0x80)
-				{
-					// We have a response to a ping
-					Serial.print("T");
+				Serial.print("T");
+				uint8_t cab = packetBuffer[0] & 0x7F;
+				if(cab)
 					Serial.print(packetBuffer[0] & 0x7F);
-					Serial.print(": ");
+				else
+					Serial.print('*');
+				Serial.print(": ");
+				if(packetBuffer[1] > 0xC0)
+				{
+					// Dumb cab command
+					switch(packetBuffer[1])
+					{
+						case 0xC1:
+							Serial.print("LCD: ");
+							for(i=0; i<8; i++)
+							{
+								uint8_t chr = packetBuffer[2+i];
+								if(chr & 0x20)
+									chr &= 0x3F;  // Clear bit 6 & 7
+								else
+									chr &= 0x7F;  // Clear only bit 7
+								Serial.print((char)chr);
+							}
+							break;
+						case 0xD4:
+							Serial.print("FC Ratio = ");
+							Serial.print(packetBuffer[2]);
+							break;
+						default:
+							for(i=0; i<packetBufferIndex; i++)
+							{
+								Serial.print(packetBuffer[i], HEX);
+								Serial.print(" ");
+							}
+							break;
+					}
+					Serial.print("\n");
+				}
+				else
+				{
+					// Response (assumes smart cabs only for now)
 					cmd = (packetBuffer[1] << 7) | packetBuffer[2];
 					if((0 <= cmd) && (cmd <= 0x270F) || (0x2780 <= cmd) && (cmd <= 0x27FF))
 					{
@@ -357,18 +390,21 @@ void loop()
 			{
 				packetBuffer[i] = 0;
 			}
-			// If next byte in RxBuffer is not another cmd with MSB set, then start filling buffer in prep for getting a response.
-			if(!(rxBufferPop(1) & 0x80))  // Snoop, but don't pop it yet (will be done in next loop)
-			{
+/*			// If next byte in RxBuffer is not another cmd with MSB set, then start filling buffer in prep for getting a response.*/
+/*			if(!(rxBufferPop(1) & 0x80))  // Snoop, but don't pop it yet (will be done in next loop)*/
+/*			{*/
+
+				// Start filling buffer again
 				packetBuffer[packetBufferIndex] = data;
 				if(packetBufferIndex < (PKT_BUFFER_SIZE-1))
 					packetBufferIndex++;
-			}
+
+/*			}*/
 		}
 		else
 		{
-			//  Not from command station...  or it's byte 3 or 4
-			packetBuffer[packetBufferIndex] = data & 0xFF;  // FIXME: buffer overflow possible!
+			//  Not a ping
+			packetBuffer[packetBufferIndex] = data & 0xFF;
 			if(packetBufferIndex < (PKT_BUFFER_SIZE-1))
 				packetBufferIndex++;
 		}
