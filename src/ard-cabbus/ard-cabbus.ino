@@ -225,7 +225,7 @@ void loop()
 								break;
 							case 0x07:
 								// Function Group 1
-								Serial.print("FN: ");
+								Serial.print("FG1: ");
 								if(packetBuffer[4] & 0x10)
 									Serial.print("( 0) ");
 								else
@@ -249,7 +249,7 @@ void loop()
 								break;
 							case 0x08:
 									// Function Group 2
-									Serial.print("FN: ");
+									Serial.print("FG2: ");
 									if(packetBuffer[4] & 0x01)
 										Serial.print("( 5) ");
 									else
@@ -269,7 +269,7 @@ void loop()
 								break;
 							case 0x09:
 									// Function Group 3
-									Serial.print("FN: ");
+									Serial.print("FG3: ");
 									if(packetBuffer[4] & 0x01)
 										Serial.print("( 9) ");
 									else
@@ -289,7 +289,7 @@ void loop()
 								break;
 							case 0x15:
 									// Function Group 13-20
-									Serial.print("FN: ");
+									Serial.print("FG4: ");
 									if(packetBuffer[4] & 0x01)
 										Serial.print("(13) ");
 									else
@@ -325,7 +325,7 @@ void loop()
 								break;
 							case 0x16:
 									// Function Group 21-28
-									Serial.print("FN: ");
+									Serial.print("FG5: ");
 									if(packetBuffer[4] & 0x01)
 										Serial.print("(21) ");
 									else
