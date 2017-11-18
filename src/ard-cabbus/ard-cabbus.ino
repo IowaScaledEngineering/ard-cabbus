@@ -29,8 +29,6 @@ LICENSE:
 uint16_t rxBuffer[QUEUE_DEPTH];
 uint8_t headIdx, tailIdx, rxBufferFull;
 
-uint16_t packetBuffer[PKT_BUFFER_SIZE];
-
 void serialInit(void)
 {
 #include <util/setbaud.h>
@@ -134,20 +132,287 @@ void setup()
 	serialInit();
 }
 
-#define CABBUS_STATUS_BROADCAST_CMD    0x01
-#define CABBUS_STATUS_DUMB_CAB         0x02
-#define CABBUS_STATUS_SMART_CAB        0x04
-#define CABBUS_STATUS_TX_PENDING       0x80
+void processPacket(uint8_t *packetBuffer, uint8_t byte_count)
+{
+	uint8_t i;
+	uint16_t cmd;
 
-uint8_t cabBusStatus = 0;
+	uint8_t cab = packetBuffer[0] & 0x3F;
+
+	if(byte_count > 3)  // More than just a dumb cab response or AIU response
+	{
+		Serial.print("T");
+		if(cab)
+			Serial.print(cab);
+		else
+			Serial.print('*');
+		Serial.print(":");
+
+		// Determine type of response.
+		// Relying on smart cab commands (byte 3) being less than dumb cab commands (start at 0x40), although Cab Bus spec allows smart cab commands up to 0x7F (reserved above 0x19)
+		if(packetBuffer[3] < 0x40)
+		{
+			// Smart Cab Response
+			cmd = (packetBuffer[1] << 7) | packetBuffer[2];
+			if((0 <= cmd) && (cmd <= 0x270F) || (0x2780 <= cmd) && (cmd <= 0x27FF))
+			{
+				// Locomototive Address
+				Serial.print("[ ");
+				if(cmd <= 0x270F)
+				{
+					Serial.print(cmd);
+				}
+				else
+				{
+					Serial.print("s");
+					Serial.print(cmd - 0x2780);
+				}
+				Serial.print("] ");
+				switch(packetBuffer[3])
+				{
+					case 0x01:
+						break;
+					case 0x02:
+						break;
+					case 0x03:
+						// Reverse 128 speed command
+						Serial.print("Rev: ");
+						Serial.print(packetBuffer[4]);
+						Serial.print("/128 ");
+						break;
+					case 0x04:
+						// Forward 128 speed command
+						Serial.print("Fwd: ");
+						Serial.print(packetBuffer[4]);
+						Serial.print("/128 ");
+						break;
+					case 0x05:
+						// Reverse E-stop
+						Serial.print("ESTOP (Rev) ");
+						break;
+					case 0x06:
+						// Forward E-stop
+						Serial.print("ESTOP (Fwd) ");
+						break;
+					case 0x07:
+						// Function Group 1
+						Serial.print("FG1: ");
+						if(packetBuffer[4] & 0x10)
+							Serial.print("( 0) ");
+						else
+							Serial.print("(  ) ");
+						if(packetBuffer[4] & 0x01)
+							Serial.print("( 1) ");
+						else
+							Serial.print("(  ) ");
+						if(packetBuffer[4] & 0x02)
+							Serial.print("( 2) ");
+						else
+							Serial.print("(  ) ");
+						if(packetBuffer[4] & 0x04)
+							Serial.print("( 3) ");
+						else
+							Serial.print("(  ) ");
+						if(packetBuffer[4] & 0x08)
+							Serial.print("( 4) ");
+						else
+							Serial.print("(  ) ");
+						break;
+					case 0x08:
+							// Function Group 2
+							Serial.print("FG2: ");
+							if(packetBuffer[4] & 0x01)
+								Serial.print("( 5) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x02)
+								Serial.print("( 6) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x04)
+								Serial.print("( 7) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x08)
+								Serial.print("( 8) ");
+							else
+								Serial.print("(  ) ");
+						break;
+					case 0x09:
+							// Function Group 3
+							Serial.print("FG3: ");
+							if(packetBuffer[4] & 0x01)
+								Serial.print("( 9) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x02)
+								Serial.print("(10) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x04)
+								Serial.print("(11) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x08)
+								Serial.print("(12) ");
+							else
+								Serial.print("(  ) ");
+						break;
+					case 0x15:
+							// Function Group 13-20
+							Serial.print("FG4: ");
+							if(packetBuffer[4] & 0x01)
+								Serial.print("(13) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x02)
+								Serial.print("(14) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x04)
+								Serial.print("(15) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x08)
+								Serial.print("(16) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x10)
+								Serial.print("(17) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x20)
+								Serial.print("(18) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x40)
+								Serial.print("(19) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x80)
+								Serial.print("(20) ");
+							else
+								Serial.print("(  ) ");
+						break;
+					case 0x16:
+							// Function Group 21-28
+							Serial.print("FG5: ");
+							if(packetBuffer[4] & 0x01)
+								Serial.print("(21) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x02)
+								Serial.print("(22) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x04)
+								Serial.print("(23) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x08)
+								Serial.print("(24) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x10)
+								Serial.print("(25) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x20)
+								Serial.print("(26) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x40)
+								Serial.print("(27) ");
+							else
+								Serial.print("(  ) ");
+							if(packetBuffer[4] & 0x80)
+								Serial.print("(28) ");
+							else
+								Serial.print("(  ) ");
+						break;
+				}
+			}
+		}
+		else
+		{
+			// Dumb cab packets
+			uint8_t commandIndex = 3;
+			if(byte_count > commandIndex)
+			{
+				// Only process commands if we received enough bytes for there to be a command
+				switch(packetBuffer[commandIndex])
+				{
+					case 0xC0:
+					case 0xC1:
+					case 0xC2:
+					case 0xC3:
+					case 0xC4:
+					case 0xC5:
+					case 0xC6:
+					case 0xC7:
+						Serial.print((packetBuffer[commandIndex]&0x07)/2+1);
+						Serial.print(packetBuffer[commandIndex]%2?'R':'L');
+						Serial.print("=");
+						// ASCII
+						Serial.print("\"");
+						for(i=0; i<8; i++)
+						{
+							Serial.print((char)adjustCabBusASCII(packetBuffer[commandIndex+1+i]));
+						}
+						Serial.print("\"");
+						break;
+					case 0xC8:
+						Serial.print("MV ");
+						Serial.print(packetBuffer[commandIndex+1], HEX);
+						break;
+					case 0xC9:
+						Serial.print("'");
+						Serial.print((char)adjustCabBusASCII(packetBuffer[commandIndex+1]));
+						Serial.print("' <");
+						break;
+					case 0xCA:
+						Serial.print("'");
+						Serial.print((char)adjustCabBusASCII(packetBuffer[commandIndex+1]));
+						Serial.print("' >");
+						break;
+					case 0xCE:
+						Serial.print("CRS-");
+						break;
+					case 0xCF:
+						Serial.print("CRS+");
+						break;
+					case 0xD4:
+						// Fast clock ratio
+						Serial.print("CLK ");
+						Serial.print((packetBuffer[commandIndex+1] & 0x3F));
+						Serial.print(":1");
+						break;
+				}
+			}
+		}
+		Serial.print(" { ");
+		for(i=0; i<byte_count; i++)
+		{
+			if( (0x80 == packetBuffer[0]) && (1 <= i) && (i <= 2) )
+				Serial.print("-");
+			else
+				Serial.print(packetBuffer[i], HEX);
+			Serial.print(" ");
+		}
+		Serial.println("}");
+	}
+}
 
 void loop()
 {
-	uint16_t data, cmd;
-	static uint8_t byte_count = 0;
-	uint8_t i, speed;
-	uint16_t locomotive;
+	uint8_t i;
+	uint16_t data;
 
+	uint8_t byte_count = 0;
+	uint8_t packetBuffer[PKT_BUFFER_SIZE];
+
+while(1)
+{
 	if(rxBufferDepth() > 1)
 	{
 		data = rxBufferPop(0);
@@ -157,9 +422,9 @@ void loop()
 		// byte 1: <-- response byte 1
 		// byte 2: <-- response byte 2
 		// byte 3: --> Command byte 1 (11xx xxxx)
-		// byte 4: --> Command byte 2 (sometimes doesn't follow the 11xx xxxx rule)
-		// byte n: --> More command bytes
-		// Might missing a ping following a 2 byte command (byte = 5), but we'll catch it next time we're pinged (FIXME: maybe?)
+		// byte 4: --> Command byte 2 or next ping (sometimes doesn't follow the 11xx xxxx rule)
+		// byte n: --> More command bytes or next ping (sometimes doesn't follow the 11xx xxxx rule, e.g. command 0xCB)
+		// Note: Bytes 4-n could look like pings but are conditional on the command byte 1 value
 		//
 		// Smart Cab:
 		// byte 0: --> ping
@@ -168,317 +433,48 @@ void loop()
 		// byte 3: <-- Command
 		// byte 4: <-- Value
 		// byte 5: <-- Checksum
-		// Note: Bytes 3-5 are allowed to have the MSB set
+		// Note: Bytes 4-5 are allowed to have the MSB set
 
+		// Does the byte have the characteristics of a ping (10xx xxxx)?
 		if((data & 0xC0) == 0x80)
 		{
 			// The byte might be a ping, but we need to check the exceptions
+			uint8_t cmd = packetBuffer[3];
 			if(
-				!( (cabBusStatus & CABBUS_STATUS_DUMB_CAB) && ((4 == byte_count)) ) &&
-				!( (cabBusStatus & CABBUS_STATUS_SMART_CAB) && ((3 == byte_count) || (4 == byte_count) || (5 == byte_count)) )
+				!( (0x15 <= cmd) && (cmd <= 0x16) && (4 <= byte_count) && (byte_count <= 5)  ) &&  // Ignore bytes 4 & 5 of smart cab FN13-28 responses (Note 1)
+				!( (0xCB == cmd)                  && (4 <= byte_count) && (byte_count <= 12) ) &&  // Ignore 9 bytes following dumb cab command 0xCB
+				!( (0xC0 <= cmd) && (cmd <= 0xC7) && (4 <= byte_count) && (byte_count <= 11) ) &&  // Ignore 8 bytes following dumb cab commands 0xC0 to 0xC7, special chars are not escaped (Note 2)
+				!( (0xC8 == cmd)                  && (4 == byte_count)                       ) &&  // Ignore data for command 0xC8 (unverified, based on example from spec)
+				!( (0xCC == cmd)                  && (4 == byte_count)                       )     // Ignore data for command 0xCC (?)
 			)
+			// Note 1: This could catch some cab memory access packets, too, but these are properly escaped so it shouldn't ever get here.
+			// Note 2: Although ASCII chars are escaped in the 8 char writes, special chars are not (e.g. EXPN display for FN10 and FN20).
+			//         Dumb cabs appear to be fooled by this and cause collisions, though the data appears to still get through.  Observed collisions on scope.
 			{
 				// Must be a ping, so handle it
-				uint8_t address = data & 0x3F;
-				
-				// Process previous packet, if one exists
-				if(byte_count > 1)
-				{
-					Serial.print("T");
-					uint8_t cab = packetBuffer[0] & 0x3F;
-					if(cab)
-						Serial.print(cab);
-					else
-						Serial.print('*');
-					Serial.print(":");
+				processPacket(packetBuffer, byte_count);
 
-					if(cabBusStatus & CABBUS_STATUS_SMART_CAB)
-					{
-						// Smart Cab Response
-						cmd = (packetBuffer[1] << 7) | packetBuffer[2];
-						if((0 <= cmd) && (cmd <= 0x270F) || (0x2780 <= cmd) && (cmd <= 0x27FF))
-						{
-							// Locomototive Address
-							Serial.print("[ ");
-							if(cmd <= 0x270F)
-							{
-								Serial.print(cmd);
-							}
-							else
-							{
-								Serial.print("s");
-								Serial.print(cmd - 0x2780);
-							}
-							Serial.print("] ");
-							switch(packetBuffer[3])
-							{
-								case 0x01:
-									break;
-								case 0x02:
-									break;
-								case 0x03:
-									// Reverse 128 speed command
-									Serial.print("Rev: ");
-									Serial.print(packetBuffer[4]);
-									Serial.print("/128");
-									break;
-								case 0x04:
-									// Forward 128 speed command
-									Serial.print("Fwd: ");
-									Serial.print(packetBuffer[4]);
-									Serial.print("/128");
-									break;
-								case 0x05:
-									// Reverse E-stop
-									Serial.print("ESTOP (Rev)");
-									break;
-								case 0x06:
-									// Forward E-stop
-									Serial.print("ESTOP (Fwd)");
-									break;
-								case 0x07:
-									// Function Group 1
-									Serial.print("FG1: ");
-									if(packetBuffer[4] & 0x10)
-										Serial.print("( 0) ");
-									else
-										Serial.print("(  ) ");
-									if(packetBuffer[4] & 0x01)
-										Serial.print("( 1) ");
-									else
-										Serial.print("(  ) ");
-									if(packetBuffer[4] & 0x02)
-										Serial.print("( 2) ");
-									else
-										Serial.print("(  ) ");
-									if(packetBuffer[4] & 0x04)
-										Serial.print("( 3) ");
-									else
-										Serial.print("(  ) ");
-									if(packetBuffer[4] & 0x08)
-										Serial.print("( 4) ");
-									else
-										Serial.print("(  ) ");
-									break;
-								case 0x08:
-										// Function Group 2
-										Serial.print("FG2: ");
-										if(packetBuffer[4] & 0x01)
-											Serial.print("( 5) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x02)
-											Serial.print("( 6) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x04)
-											Serial.print("( 7) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x08)
-											Serial.print("( 8) ");
-										else
-											Serial.print("(  ) ");
-									break;
-								case 0x09:
-										// Function Group 3
-										Serial.print("FG3: ");
-										if(packetBuffer[4] & 0x01)
-											Serial.print("( 9) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x02)
-											Serial.print("(10) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x04)
-											Serial.print("(11) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x08)
-											Serial.print("(12) ");
-										else
-											Serial.print("(  ) ");
-									break;
-								case 0x15:
-										// Function Group 13-20
-										Serial.print("FG4: ");
-										if(packetBuffer[4] & 0x01)
-											Serial.print("(13) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x02)
-											Serial.print("(14) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x04)
-											Serial.print("(15) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x08)
-											Serial.print("(16) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x10)
-											Serial.print("(17) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x20)
-											Serial.print("(18) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x40)
-											Serial.print("(19) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x80)
-											Serial.print("(20) ");
-										else
-											Serial.print("(  ) ");
-									break;
-								case 0x16:
-										// Function Group 21-28
-										Serial.print("FG5: ");
-										if(packetBuffer[4] & 0x01)
-											Serial.print("(21) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x02)
-											Serial.print("(22) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x04)
-											Serial.print("(23) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x08)
-											Serial.print("(24) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x10)
-											Serial.print("(25) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x20)
-											Serial.print("(26) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x40)
-											Serial.print("(27) ");
-										else
-											Serial.print("(  ) ");
-										if(packetBuffer[4] & 0x80)
-											Serial.print("(28) ");
-										else
-											Serial.print("(  ) ");
-									break;
-							}
-						}
-						Serial.print("{ ");
-						for(i=0; i<byte_count; i++)
-						{
-							Serial.print(packetBuffer[i], HEX);
-							Serial.print(" ");
-						}
-						Serial.print("}");
-					}
-					else
-					{
-						// Dumb cab packets
-						uint8_t commandIndex = 0;
-						if(0 == cab)
-							commandIndex = 1;
-						else
-							commandIndex = 3;
-						if(byte_count > commandIndex)
-						{
-							// Only process commands if we received enough bytes for there to be a command
-							switch(packetBuffer[commandIndex])
-							{
-								case 0xC0:
-								case 0xC1:
-								case 0xC2:
-								case 0xC3:
-								case 0xC4:
-								case 0xC5:
-								case 0xC6:
-								case 0xC7:
-									Serial.print((packetBuffer[commandIndex]&0x07)/2+1);
-									Serial.print(packetBuffer[commandIndex]%2?'R':'L');
-									Serial.print("=");
-									// ASCII
-									Serial.print("\"");
-									for(i=0; i<8; i++)
-									{
-										Serial.print((char)adjustCabBusASCII(packetBuffer[commandIndex+1+i]));
-									}
-									Serial.print("\"");
-									Serial.print("{ ");
-									for(i=0; i<byte_count; i++)
-									{
-										Serial.print(packetBuffer[i], HEX);
-										Serial.print(" ");
-									}
-									Serial.print("}");
-									break;
-								case 0xC8:
-									Serial.print("MV ");
-									Serial.print(packetBuffer[commandIndex+1], HEX);
-									break;
-								case 0xC9:
-									Serial.print("'");
-									Serial.print((char)adjustCabBusASCII(packetBuffer[commandIndex+1]));
-									Serial.print("' <");
-									break;
-								case 0xCA:
-									Serial.print("'");
-									Serial.print((char)adjustCabBusASCII(packetBuffer[commandIndex+1]));
-									Serial.print("' >");
-									break;
-								case 0xD4:
-									// Fast clock ratio
-									Serial.print("FC ");
-									Serial.print(packetBuffer[2]);
-									Serial.print(":1");
-									break;
-								default:
-									Serial.print("{ ");
-									for(i=0; i<byte_count; i++)
-									{
-										Serial.print(packetBuffer[i], HEX);
-										Serial.print(" ");
-									}
-									Serial.print("}");
-									break;
-							}
-						}
-					}
-
-					Serial.print("\n");
-				}
-
-				// Reset flags
-				cabBusStatus &= ~CABBUS_STATUS_SMART_CAB;
-				cabBusStatus &= ~CABBUS_STATUS_DUMB_CAB;
-				// Reset byte_count so the current data byte gets stored in the correct spot
+				// Reset byte_count so the current data byte gets stored in the correct (index = 0) spot
 				byte_count = 0;
 			}
 		}
 
 		if(1 == byte_count)
 		{
-			// First byte of a response.  Determine the response type.
-			if(data < 0x40)
-				cabBusStatus |= CABBUS_STATUS_SMART_CAB;
-			else
-				cabBusStatus |= CABBUS_STATUS_DUMB_CAB;
+			// First byte after ping
+			if(0x80 == packetBuffer[0])
+			{
+				// Broadcast command, skip 2 bytes so it aligns with normal commands
+				packetBuffer[byte_count++] = 0;
+				packetBuffer[byte_count++] = 0;
+			}
 		}
 
 		// Store the byte
 		packetBuffer[byte_count] = data;
 		byte_count++;
 	}
-
+}
 }
 
 
