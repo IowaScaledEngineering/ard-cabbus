@@ -150,7 +150,96 @@ void processPacket(uint8_t *packetBuffer, uint8_t byte_count)
 
 		// Determine type of response.
 		// Relying on smart cab commands (byte 3) being less than dumb cab commands (start at 0x40), although Cab Bus spec allows smart cab commands up to 0x7F (reserved above 0x19)
-		if(packetBuffer[3] < 0x40)
+		if( (0x4E == packetBuffer[1]) && (0x50 <= packetBuffer[2]) && (packetBuffer[2] <= 0x7F) && !(0x80 & packetBuffer[3]) )
+		{
+			// OPS programming
+			// 0x4E + {0x50 - 0x7F} could also be a dumb cab response.
+			// However, the following dumb cab command (byte 3) will have the MSB set
+			uint16_t cvAddress = (((uint16_t)packetBuffer[2] & 0x0F) << 6) + ((packetBuffer[3] & 0x7E) >> 1);
+			uint8_t cvData = ((packetBuffer[3] & 0x01) << 7) + (packetBuffer[4] & 0x7F);
+			Serial.print("CV");
+			Serial.print(cvAddress);
+			Serial.print("=");
+			Serial.print(cvData);
+		}
+		else if( (0x4E == packetBuffer[1]) && (0x18 <= packetBuffer[2]) && (packetBuffer[2] <= 0x19) )// && !(0x80 & packetBuffer[3]) )
+		{
+			// Cab Memory Access
+			// 0x4E + {0x18 - 0x19} could also be a dumb cab response.
+			// However, the following dumb cab command (byte 3) will have the MSB set
+			uint8_t op1 = (packetBuffer[3] & 0x7E) >> 1;
+			uint8_t op2 = ((packetBuffer[3] & 0x01) << 7) + (packetBuffer[4] & 0x7F);
+			if(0x18 == packetBuffer[2])
+			{
+				// Memory Address Pointer
+				Serial.print("Ad=");
+				Serial.print(op1);
+				Serial.print(",Pg=");
+				Serial.print(op2);
+			}
+			else
+			{
+				// Memory Read/Write
+				switch(op1)
+				{
+					case 0x00:
+						Serial.print("Wr=0x");
+						Serial.print(op2, HEX);
+						break;
+					case 0x01:
+						Serial.print("Wr=0x");
+						Serial.print(op2+128, HEX);
+						break;
+					case 0x02:
+						Serial.print("Read");
+						Serial.print(op2);
+						break;
+					case 0x03:
+						Serial.print("RdAIU(");
+						Serial.print(op2);
+						Serial.print(")");
+						break;
+				}
+				if(byte_count > 5)
+				{
+					// Response to a read
+					switch(packetBuffer[7] & 0x30)
+					{
+						case 0x00:
+							Serial.print(" Succ ");
+							break;
+						case 0x10:
+							Serial.print(" Fail ");
+							break;
+						case 0x20:
+						case 0x30:
+							Serial.print(" ???? ");
+							break;
+					}
+					switch(packetBuffer[6])
+					{
+						case 0xD8:
+							Serial.print( ((packetBuffer[7] & 0x03) << 6) + (packetBuffer[8] & 0x3F), HEX);
+							break;
+						case 0xD9:
+							Serial.print( ((packetBuffer[7] & 0x0F) << 4) + (packetBuffer[8] & 0x0F), HEX);
+							Serial.print(" ");
+							Serial.print( ((packetBuffer[8] & 0x30) << 2) + (packetBuffer[9] & 0x3F), HEX);
+							break;
+						case 0xDA:
+							Serial.print( ((packetBuffer[7] & 0x0F) << 4) + (packetBuffer[8] & 0x0F), HEX);
+							Serial.print(" ");
+							Serial.print( ((packetBuffer[8] & 0x30) << 2) + (packetBuffer[9] & 0x3F), HEX);
+							Serial.print(" ");
+							Serial.print( ((packetBuffer[10] & 0x0F) << 4) + (packetBuffer[11] & 0x0F), HEX);
+							Serial.print(" ");
+							Serial.print( ((packetBuffer[11] & 0x30) << 2) + (packetBuffer[12] & 0x3F), HEX);
+							break;
+					}
+				}
+			}
+		}
+		else if(packetBuffer[3] < 0x40)
 		{
 			// Smart Cab Response
 			cmd = (packetBuffer[1] << 7) | packetBuffer[2];
@@ -447,7 +536,7 @@ while(1)
 				!( (0xC8 == cmd)                  && (4 == byte_count)                       ) &&  // Ignore data for command 0xC8 (unverified, based on example from spec)
 				!( (0xCC == cmd)                  && (4 == byte_count)                       )     // Ignore data for command 0xCC (?)
 			)
-			// Note 1: This could catch some cab memory access packets, too, but these are properly escaped so it shouldn't ever get here.
+			// Note 1: This could catch some cab memory access and OPS programming packets, too, but these are properly escaped so it shouldn't ever get here.
 			// Note 2: Although ASCII chars are escaped in the 8 char writes, special chars are not (e.g. EXPN display for FN10 and FN20).
 			//         Dumb cabs appear to be fooled by this and cause collisions, though the data appears to still get through.  Observed collisions on scope.
 			{
