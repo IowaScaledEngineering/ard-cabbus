@@ -246,15 +246,21 @@ void processPacket(uint8_t *packetBuffer, uint8_t byte_count)
 			if((0 <= cmd) && (cmd <= 0x270F) || (0x2780 <= cmd) && (cmd <= 0x27FF))
 			{
 				// Locomototive Address
-				Serial.print("[ ");
+				Serial.print("[");
 				if(cmd <= 0x270F)
 				{
-					Serial.print(cmd);
+					Serial.print((char)('0' + ((cmd/1000)%10)));
+					Serial.print((char)('0' + ((cmd/100)%10)));
+					Serial.print((char)('0' + ((cmd/10)%10)));
+					Serial.print((char)('0' + (cmd%10)));
 				}
 				else
 				{
+					cmd -= 0x2780;
 					Serial.print("s");
-					Serial.print(cmd - 0x2780);
+					Serial.print((char)('0' + ((cmd/100)%10)));
+					Serial.print((char)('0' + ((cmd/10)%10)));
+					Serial.print((char)('0' + (cmd%10)));
 				}
 				Serial.print("] ");
 				switch(packetBuffer[3])
